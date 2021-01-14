@@ -10,7 +10,8 @@ class Main extends Component {
           event.preventDefault()
           const name = this.productName.value
           const price = window.web3.utils.toWei(this.productPrice.value.toString(), 'Ether')
-          this.props.createProduct(name, price)
+          const refundable = this.productRefundable.value
+          this.props.createProduct(name, price, refundable)
         }}>
           <div className="form-group mr-sm-2">
             <input
@@ -30,6 +31,15 @@ class Main extends Component {
               placeholder="Product Price"
               required />
           </div>
+          <div className="form-group mr-sm-2">
+            <input
+              id="productRefundable"
+              type="bool"
+              ref={(input) => { this.productRefundable = input }}
+              className="form-control"
+              placeholder="Refundable? (true/false)"
+              required />
+          </div>
           <button type="submit" className="btn btn-primary">Add Product</button>
         </form>
         <p>&nbsp;</p>
@@ -42,6 +52,8 @@ class Main extends Component {
               <th scope="col">Price</th>
               <th scope="col">Issuer</th>
               <th scope="col">Holder</th>
+              <th scope="col">Refundable</th>
+              <th scope="col">Obsolete</th>
               <th scope="col"></th>
             </tr>
           </thead>
@@ -54,6 +66,8 @@ class Main extends Component {
                   <td>{window.web3.utils.fromWei(product.price.toString(), 'Ether')} Eth</td>
                   <td>{product.issuer}</td>
                   <td>{product.holder}</td>
+                  <td>{product.refundable}</td>
+                  <td>{product.obsolete}</td>
                   <td>
                     { !product.purchased
                       ? <button
