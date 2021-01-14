@@ -4,7 +4,7 @@ An event ticketing app with low transaction fees and blockchain-driven anti-scal
 ## How to run the dapp (test.js file)
 1. Open the Ganache app (dock)
 
-	a. Open the hard-to-find-sponge workspace
+	a. Open the `hard-to-find-sponge` workspace
 	
 2. Open the Metamask browser extension (Google Chrome)
 
@@ -18,11 +18,17 @@ An event ticketing app with low transaction fees and blockchain-driven anti-scal
 6. In Terminal, run `truffle console` (optional)
 
 	a. If so desired, run the following test commands: 
+	
 		`marketplace = await Marketplace.deployed()`
+		
 		`marketplace.address`
+		
 		`name = await marketplace.name()`
+		
 		`name`
+		
 		`sup = await marketplace.supervisor()`
+		
 		`sup`
 		
 7. In Terminal, run `truffle test`
