@@ -1,10 +1,11 @@
-Source for this starter dapp: https://www.dappuniversity.com/articles/how-to-build-a-blockchain-app#dependencies
+## Brief description
+An event ticketing app with low transaction fees and blockchain-driven anti-scalping protections
 
-How to run the dapp
+## How to run the dapp (test.js file)
 1. Open the Ganache app (dock)
 	a. Open the hard-to-find-sponge workspace
 2. Open the Metamask browser extension (Google Chrome)
-	a. Log in if needed**
+	a. Log in if needed
 	b. Switch to the Ganache TEST network
 3. In Terminal, run `cd /Users/openamiguel/Documents/marketplace`
 4. In Terminal, run `truffle compile`
@@ -19,9 +20,22 @@ How to run the dapp
 		`sup`
 7. In Terminal, run `truffle test`
 
-** All necessary credentials are in the mask.txt file in my Dropbox
+## How to run the dapp (Remix IDE)
+1. Open remix.ethereum.org
+2. Upload any relevant `.sol` files to the File Explorer
+3. In the `Solidity Compiler` tab, do the following:
+	a. Choose the correct compiler given the `.sol` files
+	b. Compile the selected code
+4. In the `Deploy and Run Transactions` tab, do the following: 
+	a. In the `Environment` dropdown menu, choose the JavaScript VM
+	b. In the `Account` dropdown menu, choose the first address to deploy the contract
+	c. Press the `Deploy` button
+	d. Click on the dropdown menu that says `Marketplace at (some address)`
+	e. Test the various functions, e.g., `createProduct`, `purchaseProduct`, and others
+		i. Recommendation: use the second address as ticket issuer, and use the third address as ticket holder
+5. If errors arise in the console, press the `Debug` button to view line-by-line code execution
 
-Untested functionalities
-* Is productsPerBuyerPerIssuer actually tracking number of purchases?
+## Untested functionalities
 
-To debug, upload `Marketplace.sol` onto remix.ethereum.org and run the contract in the JavaScript VM. Deploy the contract with the first address as supervisor, second address as ticket issuer, and third address as ticket buyer. 
+## Acknowledgements
+Credits to Dapp University for the starter code for this app: https://www.dappuniversity.com/articles/how-to-build-a-blockchain-app#dependencies
