@@ -19,7 +19,7 @@ contract Marketplace {
 		address payable issuer; // Issuer of ticket (e.g., event host, trusted third party)
 		address payable holder; // Holder of ticket
 		bool purchased;
-		bool refundable; // Non-refundable products can be purchased but not returned
+		uint percentRefund; // Non-refundable products (percentRefund == 0) can be purchased but not returned
 		bool withdrawn; // withdrawn products can be returned but not purchased
 	}
 
@@ -30,7 +30,7 @@ contract Marketplace {
 		address payable issuer,
 		address payable holder,
 		bool purchased, 
-		bool refundable, 
+		uint percentRefund, 
 		bool withdrawn
 	);
 
@@ -41,7 +41,7 @@ contract Marketplace {
 		address payable issuer,
 		address payable holder,
 		bool purchased, 
-		bool refundable, 
+		uint percentRefund, 
 		bool withdrawn
 	);
 
@@ -52,7 +52,7 @@ contract Marketplace {
 		address payable issuer,
 		address payable holder,
 		bool purchased, 
-		bool refundable, 
+		uint percentRefund, 
 		bool withdrawn
 	);
 
@@ -63,7 +63,7 @@ contract Marketplace {
 		address payable issuer,
 		address payable holder,
 		bool purchased, 
-		bool refundable, 
+		uint percentRefund, 
 		bool withdrawn
 	);
 
@@ -80,27 +80,29 @@ contract Marketplace {
 
 	modifier validProductID(uint _id) {
 		// Check if product has valid ID
-		require(_product.id > 0 && _product.id <= productCount, "Invalid product ID passed to this function.");
+		require(_id > 0 && _id <= productCount, "Invalid product ID passed to this function.");
 		_; 
 	}
 
 	// msg.sender is the issuer
 	// Transaction fee for owner: 0 Wei
-	function createProduct(string calldata _name, uint _price, bool refundable) external {
+	function createProduct(string calldata _name, uint _price, uint _percentRefund) external {
 		// Require a valid name
 		require(bytes(_name).length > 0, "Invalid name passed to product creation function."); 
-		// Require a valid price
-		require(_price >= 1 * 100 / percentFee, "Insufficiently low price passed to product creation function."); 
+		// Require a valid price (so that 1% of the minimum price = 1 wei)
+		require(_price >= 100, "Insufficiently low price passed to product creation function."); 
+		// Require a valid percent
+		require(_percentRefund >= 0 && _percentRefund <= 100); 
 		// Increment product count
 		productCount++;
 		// Create product
-		products[productCount] = Product(productCount, _name, _price, msg.sender, msg.sender, false, refundable, false);
+		products[productCount] = Product(productCount, _name, _price, msg.sender, msg.sender, false, _percentRefund, false);
 		// Trigger an event
-		emit ProductCreated(productCount, _name, _price, msg.sender, msg.sender, false, refundable, false);
+		emit ProductCreated(productCount, _name, _price, msg.sender, msg.sender, false, _percentRefund, false);
 	}
 
 	// msg.sender is the issuer
-	// Irreversibly toggles products[_id] to be withdrawn
+	// Irreversibly withdraws products[_id] from the market
 	function withdrawProduct(uint _id) validProductID(_id) external {
 		// Fetch the product
 		Product memory _product = products[_id];
@@ -111,7 +113,7 @@ contract Marketplace {
 		// Update the product
 		products[_id] = _product; 
 		// Trigger an event
-		emit ProductWithdrawn(_product.id, _product.name, _product.price, msg.sender, _product.holder, _product.purchased, _product.refundable, true);
+		emit ProductWithdrawn(_product.id, _product.name, _product.price, msg.sender, _product.holder, _product.purchased, _product.percentRefund, true);
 	}
 
 	// msg.sender is the buyer
@@ -144,12 +146,10 @@ contract Marketplace {
 		// Update mapping
 		productsPerBuyerPerIssuer[msg.sender][_issuer]++; 
 		// Trigger event
-		emit ProductPurchased(_product.id, _product.name, _product.price, _product.issuer, msg.sender, true, _product.refundable, false);
+		emit ProductPurchased(_product.id, _product.name, _product.price, _product.issuer, msg.sender, true, _product.percentRefund, false);
 	}
 
 	// msg.sender is the issuer
-	// Problem: avoid the case where issuer unilaterally pulls tickets? (unless we WANT that to be allowed)
-	// Problem: avoid the case where issuer refuses to refund, despite previously attested-to terms
 	// Transaction fee for owner: percentFee pct of ticket price
 	function returnProduct(uint _id) validProductID(_id) external payable {
 		// Fetch the product
@@ -169,7 +169,7 @@ contract Marketplace {
 		// Require that buyer is not issuer
 		require(_buyer != msg.sender, "Issuer cannot return product to themselves."); 
 		// Require that product is refundable
-		require(_product.refundable, "Product is non-refundable."); 
+		require(_product.percentRefund > 0, "Product is non-refundable."); 
 		// Transfer holdership back to issuer
 		_product.holder = msg.sender; 
 		// Revert purchased status
@@ -177,13 +177,13 @@ contract Marketplace {
 		// Update the product
 		products[_id] = _product; 
 		// Pay the buyer with Ether
-		address(_buyer).transfer(msg.value);
+		address(_buyer).transfer(msg.value * _product.percentRefund / 100);
 		// Pay the owner with Ether
 		// address(owner).transfer(msg.value * percentFee / 100); 
 		// Update mapping
 		productsPerBuyerPerIssuer[_buyer][msg.sender]--; 
 		// Trigger event
-		emit ProductReturned(_product.id, _product.name, _product.price, msg.sender, _product.holder, false, true, _product.withdrawn);
+		emit ProductReturned(_product.id, _product.name, _product.price, msg.sender, _product.holder, false, _product.percentRefund, _product.withdrawn);
 	}
 
 }
