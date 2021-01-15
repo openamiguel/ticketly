@@ -60,23 +60,6 @@ class Main extends Component {
           <button type="submit" className="btn btn-primary">Add Product</button>
         </form>
         <p>&nbsp;</p>
-        <h2>Withdraw Product from Marketplace</h2>
-        <form onSubmit={(event) => {
-          event.preventDefault()
-          const id = this.productID.value
-          this.props.withdrawProduct(id)
-        }}>
-          <div className="form-group mr-sm-2">
-            <input
-              id="productID"
-              type="int"
-              ref={(input) => { this.productID = input }}
-              className="form-control"
-              placeholder="Product ID"
-              required />
-          </div>
-          <button type="submit" className="btn btn-primary">Withdraw Product</button>
-        </form>
         <p>&nbsp;</p>
         <h2>Buy/Return Product</h2>
         <table className="table">
@@ -127,6 +110,20 @@ class Main extends Component {
                           }}
                         >
                           Return
+                        </button>
+                      : null
+                    }
+                    </td>
+                  <td>
+                    { !product.withdrawn
+                      ? <button
+                          name={product.id}
+                          value={product.price}
+                          onClick={(event) => {
+                            this.props.withdrawProduct(event.target.name)
+                          }}
+                        >
+                          Withdraw
                         </button>
                       : null
                     }
