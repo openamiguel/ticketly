@@ -27,8 +27,8 @@ class Main extends Component {
           event.preventDefault()
           const name = this.productName.value
           const price = window.web3.utils.toWei(this.productPrice.value.toString(), 'Ether')
-          const refundable = this.state.checkboxValue.value
-          this.props.createProduct(name, price, refundable)
+          const refund = this.productPercentRefundable.value
+          this.props.createProduct(name, price, refund)
         }}>
           <div className="form-group mr-sm-2">
             <input
@@ -49,13 +49,13 @@ class Main extends Component {
               required />
           </div>
           <div className="form-group mr-sm-2">
-            Product is refundable:  
             <input
-              id="productRefundable"
-              type="checkbox"
-              checked={this.state.checkboxValue}
-              onChange={this.handleInputChange}
-              />
+              id="productPercentRefundable"
+              type="number"
+              ref={(input) => { this.productPercentRefundable = input }}
+              className="form-control"
+              placeholder="Percent Refundable"
+              required />
           </div>
           <button type="submit" className="btn btn-primary">Add Product</button>
         </form>
@@ -87,7 +87,7 @@ class Main extends Component {
               <th scope="col">Price</th>
               <th scope="col">Issuer</th>
               <th scope="col">Holder</th>
-              <th scope="col">Refundable</th>
+              <th scope="col">Percent Refundable</th>
               <th scope="col">Withdrawn</th>
               <th scope="col"></th>
             </tr>
@@ -101,7 +101,7 @@ class Main extends Component {
                   <td>{window.web3.utils.fromWei(product.price.toString(), 'Ether')} Eth</td>
                   <td>{product.issuer}</td>
                   <td>{product.holder}</td>
-                  <td>{product.refundable.toString()}</td>
+                  <td>{product.percentRefund.toString()}</td>
                   <td>{product.withdrawn.toString()}</td>
                   <td>
                     { !product.purchased && !product.withdrawn
@@ -118,7 +118,7 @@ class Main extends Component {
                     }
                     </td>
                   <td>
-                    { product.purchased && product.refundable
+                    { product.purchased && product.percentRefund > 0
                       ? <button
                           name={product.id}
                           value={product.price}

@@ -65,9 +65,9 @@ class App extends Component {
     this.returnProduct = this.returnProduct.bind(this)
   }
 
-  createProduct(name, price, refundable) {
+  createProduct(name, price, percentRefund) {
     this.setState({ loading: true })
-    this.state.marketplace.methods.createProduct(name, price, refundable).send({ from: this.state.account })
+    this.state.marketplace.methods.createProduct(name, price, percentRefund).send({ from: this.state.account })
     .once('receipt', (receipt) => {
       this.setState({ loading: false })
     })
