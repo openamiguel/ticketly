@@ -4,7 +4,7 @@ An event ticketing app with low transaction fees and blockchain-driven anti-scal
 ## How to run the dapp (test.js file)
 1. Open the Ganache app (dock)
 
-	a. Open the `hard-to-find-sponge` workspace
+	a. Open the hard-to-find-sponge workspace
 	
 2. Open the Metamask browser extension (Google Chrome)
 
@@ -12,23 +12,17 @@ An event ticketing app with low transaction fees and blockchain-driven anti-scal
 	
 	b. Switch to the Ganache TEST network
 	
-3. In Terminal, run `cd /Users/openamiguel/Documents/marketplace`
+3. In Terminal, `cd` into the project directory
 4. In Terminal, run `truffle compile`
 5. In Terminal, run `truffle migrate --reset` (pushes new code to the blockchain!)
 6. In Terminal, run `truffle console` (optional)
 
 	a. If so desired, run the following test commands: 
-	
 		`marketplace = await Marketplace.deployed()`
-		
 		`marketplace.address`
-		
 		`name = await marketplace.name()`
-		
 		`name`
-		
 		`sup = await marketplace.supervisor()`
-		
 		`sup`
 		
 7. In Terminal, run `truffle test`
@@ -58,7 +52,24 @@ An event ticketing app with low transaction fees and blockchain-driven anti-scal
 		
 5. If errors arise in the console, press the `Debug` button to view line-by-line code execution
 
+## How to run the dapp (npm frontend)
+1. Open the Ganache app (dock)
+
+	a. Open the hard-to-find-sponge workspace
+
+2. Open the Metamask browser extension (Google Chrome)
+
+	a. Log in if needed
+	
+	b. Switch to the Ganache TEST network
+
+3. In Terminal, `cd` into the project directory
+4. In Terminal, run `npm run start`
+
 ## Untested functionalities
+Should I be using modifiers to collapse duplicate code as much as possible? Or will I cause high gas/security problems?
 
 ## Acknowledgements
 Credits to Dapp University for the starter code for this app: https://www.dappuniversity.com/articles/how-to-build-a-blockchain-app#dependencies
+
+Good source on using Remix for debugging: https://medium.com/linum-labs/error-vm-exception-while-processing-transaction-revert-8cd856633793
