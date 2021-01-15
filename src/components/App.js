@@ -60,12 +60,22 @@ class App extends Component {
     }
 
     this.createProduct = this.createProduct.bind(this)
+    this.withdrawProduct = this.withdrawProduct.bind(this)
     this.purchaseProduct = this.purchaseProduct.bind(this)
+    this.returnProduct = this.returnProduct.bind(this)
   }
 
   createProduct(name, price, refundable) {
     this.setState({ loading: true })
     this.state.marketplace.methods.createProduct(name, price, refundable).send({ from: this.state.account })
+    .once('receipt', (receipt) => {
+      this.setState({ loading: false })
+    })
+  }
+
+  withdrawProduct(id) {
+    this.setState({ loading: true })
+    this.state.marketplace.methods.withdrawProduct(id).send({ from: this.state.account })
     .once('receipt', (receipt) => {
       this.setState({ loading: false })
     })
@@ -99,6 +109,7 @@ class App extends Component {
                 : <Main
                   products={this.state.products}
                   createProduct={this.createProduct}
+                  withdrawProduct={this.withdrawProduct}
                   purchaseProduct={this.purchaseProduct} 
                   returnProduct={this.returnProduct} />
               }

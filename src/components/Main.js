@@ -2,15 +2,32 @@ import React, { Component } from 'react';
 
 class Main extends Component {
 
+  constructor(props) {
+    super(props);
+    this.state = {
+      checkboxValue: false
+    }
+    this.handleInputChange = this.handleInputChange.bind(this);
+  }
+
+  handleInputChange(event) {
+    const target = event.target;
+    const value = target.type === 'checkbox' ? target.checked : target.value;
+    const name = target.name;
+    this.setState({
+      [name]: value
+    });
+  }
+
   render() {
     return (
       <div id="content">
-        <h1>Add Product</h1>
+        <h2>Add Product</h2>
         <form onSubmit={(event) => {
           event.preventDefault()
           const name = this.productName.value
           const price = window.web3.utils.toWei(this.productPrice.value.toString(), 'Ether')
-          const refundable = this.productRefundable.value
+          const refundable = this.state.checkboxValue.value
           this.props.createProduct(name, price, refundable)
         }}>
           <div className="form-group mr-sm-2">
@@ -32,18 +49,36 @@ class Main extends Component {
               required />
           </div>
           <div className="form-group mr-sm-2">
+            Product is refundable:  
             <input
               id="productRefundable"
-              type="bool"
-              ref={(input) => { this.productRefundable = input }}
-              className="form-control"
-              placeholder="Refundable? (true/false)"
-              required />
+              type="checkbox"
+              checked={this.state.checkboxValue}
+              onChange={this.handleInputChange}
+              />
           </div>
           <button type="submit" className="btn btn-primary">Add Product</button>
         </form>
         <p>&nbsp;</p>
-        <h2>Buy Product</h2>
+        <h2>Withdraw Product from Marketplace</h2>
+        <form onSubmit={(event) => {
+          event.preventDefault()
+          const id = this.productID.value
+          this.props.withdrawProduct(id)
+        }}>
+          <div className="form-group mr-sm-2">
+            <input
+              id="productID"
+              type="int"
+              ref={(input) => { this.productID = input }}
+              className="form-control"
+              placeholder="Product ID"
+              required />
+          </div>
+          <button type="submit" className="btn btn-primary">Withdraw Product</button>
+        </form>
+        <p>&nbsp;</p>
+        <h2>Buy/Return Product</h2>
         <table className="table">
           <thead>
             <tr>
@@ -53,7 +88,7 @@ class Main extends Component {
               <th scope="col">Issuer</th>
               <th scope="col">Holder</th>
               <th scope="col">Refundable</th>
-              <th scope="col">Obsolete</th>
+              <th scope="col">Withdrawn</th>
               <th scope="col"></th>
             </tr>
           </thead>
@@ -66,10 +101,10 @@ class Main extends Component {
                   <td>{window.web3.utils.fromWei(product.price.toString(), 'Ether')} Eth</td>
                   <td>{product.issuer}</td>
                   <td>{product.holder}</td>
-                  <td>{product.refundable}</td>
-                  <td>{product.obsolete}</td>
+                  <td>{product.refundable.toString()}</td>
+                  <td>{product.withdrawn.toString()}</td>
                   <td>
-                    { !product.purchased
+                    { !product.purchased && !product.withdrawn
                       ? <button
                           name={product.id}
                           value={product.price}
@@ -83,7 +118,7 @@ class Main extends Component {
                     }
                     </td>
                   <td>
-                    { product.purchased
+                    { product.purchased && product.refundable
                       ? <button
                           name={product.id}
                           value={product.price}
