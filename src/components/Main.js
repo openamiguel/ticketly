@@ -2,23 +2,6 @@ import React, { Component } from 'react';
 
 class Main extends Component {
 
-  constructor(props) {
-    super(props);
-    this.state = {
-      checkboxValue: false
-    }
-    this.handleInputChange = this.handleInputChange.bind(this);
-  }
-
-  handleInputChange(event) {
-    const target = event.target;
-    const value = target.type === 'checkbox' ? target.checked : target.value;
-    const name = target.name;
-    this.setState({
-      [name]: value
-    });
-  }
-
   render() {
     return (
       <div id="content">
@@ -71,6 +54,7 @@ class Main extends Component {
               <th scope="col">Issuer</th>
               <th scope="col">Holder</th>
               <th scope="col">Percent Refundable</th>
+              <th scope="col">Return Requested</th>
               <th scope="col">Withdrawn</th>
               <th scope="col"></th>
             </tr>
@@ -85,9 +69,10 @@ class Main extends Component {
                   <td>{product.issuer}</td>
                   <td>{product.holder}</td>
                   <td>{product.percentRefund.toString()}</td>
+                  <td>{product.returnRequested.toString()}</td>
                   <td>{product.withdrawn.toString()}</td>
                   <td>
-                    { !product.purchased && !product.withdrawn
+                    { !product.purchased && !product.withdrawn // && window.web3.eth.accounts[0] !== product.issuer
                       ? <button
                           name={product.id}
                           value={product.price}
@@ -101,7 +86,7 @@ class Main extends Component {
                     }
                     </td>
                   <td>
-                    { product.purchased && product.percentRefund > 0
+                    { product.purchased && product.percentRefund > 0 // && window.web3.eth.accounts[0] === product.issuer
                       ? <button
                           name={product.id}
                           value={product.price}
@@ -115,7 +100,21 @@ class Main extends Component {
                     }
                     </td>
                   <td>
-                    { !product.withdrawn
+                    { product.purchased && product.percentRefund > 0 && !product.returnRequested // && window.web3.eth.accounts[0] === product.holder
+                      ? <button
+                          name={product.id}
+                          value={product.price}
+                          onClick={(event) => {
+                            this.props.requestReturn(event.target.name, event.target.value)
+                          }}
+                        >
+                          Request Return
+                        </button>
+                      : null
+                    }
+                    </td>
+                  <td>
+                    { !product.withdrawn // && window.web3.utils.toChecksumAddress(window.web3.eth.defaultAccount) === window.web3.utils.toChecksumAddress(product.issuer)
                       ? <button
                           name={product.id}
                           value={product.price}
