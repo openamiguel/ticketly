@@ -20,6 +20,7 @@ contract Marketplace {
 		address payable holder; // Holder of ticket
 		bool purchased;
 		uint percentRefund; // Non-refundable products (percentRefund == 0) can be purchased but not returned
+		bool returnRequested; // Buyer can request refunds, but seller must unilaterally approve requests
 		bool withdrawn; // withdrawn products can be returned but not purchased
 	}
 
@@ -31,6 +32,7 @@ contract Marketplace {
 		address payable holder,
 		bool purchased, 
 		uint percentRefund, 
+		bool returnRequested, 
 		bool withdrawn
 	);
 
@@ -42,6 +44,19 @@ contract Marketplace {
 		address payable holder,
 		bool purchased, 
 		uint percentRefund, 
+		bool returnRequested, 
+		bool withdrawn
+	);
+
+	event ReturnRequested(
+		uint id,
+		string name,
+		uint price,
+		address payable issuer,
+		address payable holder,
+		bool purchased, 
+		uint percentRefund, 
+		bool returnRequested, 
 		bool withdrawn
 	);
 
@@ -53,6 +68,7 @@ contract Marketplace {
 		address payable holder,
 		bool purchased, 
 		uint percentRefund, 
+		bool returnRequested, 
 		bool withdrawn
 	);
 
@@ -64,6 +80,7 @@ contract Marketplace {
 		address payable holder,
 		bool purchased, 
 		uint percentRefund, 
+		bool returnRequested, 
 		bool withdrawn
 	);
 
@@ -96,9 +113,9 @@ contract Marketplace {
 		// Increment product count
 		productCount++;
 		// Create product
-		products[productCount] = Product(productCount, _name, _price, msg.sender, msg.sender, false, _percentRefund, false);
+		products[productCount] = Product(productCount, _name, _price, msg.sender, msg.sender, false, _percentRefund, false, false);
 		// Trigger an event
-		emit ProductCreated(productCount, _name, _price, msg.sender, msg.sender, false, _percentRefund, false);
+		emit ProductCreated(productCount, _name, _price, msg.sender, msg.sender, false, _percentRefund, false, false);
 	}
 
 	// msg.sender is the issuer
@@ -113,7 +130,26 @@ contract Marketplace {
 		// Update the product
 		products[_id] = _product; 
 		// Trigger an event
-		emit ProductWithdrawn(_product.id, _product.name, _product.price, msg.sender, _product.holder, _product.purchased, _product.percentRefund, true);
+		emit ProductWithdrawn(_product.id, _product.name, _product.price, msg.sender, _product.holder, _product.purchased, _product.percentRefund, _product.returnRequested, true);
+	}
+
+	// msg.sender is the buyer
+	// Requests for issuer to refund item
+	function requestReturn(uint _id) validProductID(_id) external {
+		// Fetch the product
+		Product memory _product = products[_id];
+		// Require that product is refundable
+		require(_product.percentRefund > 0, "Product is non-refundable."); 
+		// Require that product has been purchased
+		require(_product.purchased); 
+		// Require that buyer is valid
+		require(_product.holder == msg.sender, "Only the product holder can request a return."); 
+		// Request return
+		_product.returnRequested = true; 
+		// Update the product
+		products[_id] = _product; 
+		// Trigger an event
+		emit ReturnRequested(_product.id, _product.name, _product.price, _product.issuer, msg.sender, true, _product.percentRefund, true, _product.withdrawn);
 	}
 
 	// msg.sender is the buyer
@@ -146,7 +182,7 @@ contract Marketplace {
 		// Update mapping
 		productsPerBuyerPerIssuer[msg.sender][_issuer]++; 
 		// Trigger event
-		emit ProductPurchased(_product.id, _product.name, _product.price, _product.issuer, msg.sender, true, _product.percentRefund, false);
+		emit ProductPurchased(_product.id, _product.name, _product.price, _product.issuer, msg.sender, true, _product.percentRefund, _product.returnRequested, false);
 	}
 
 	// msg.sender is the issuer
@@ -174,6 +210,8 @@ contract Marketplace {
 		_product.holder = msg.sender; 
 		// Revert purchased status
 		_product.purchased = false;
+		// Delete history of return request (if any)
+		_product.returnRequested = false; 
 		// Update the product
 		products[_id] = _product; 
 		// Pay the buyer with Ether
@@ -183,7 +221,7 @@ contract Marketplace {
 		// Update mapping
 		productsPerBuyerPerIssuer[_buyer][msg.sender]--; 
 		// Trigger event
-		emit ProductReturned(_product.id, _product.name, _product.price, msg.sender, _product.holder, false, _product.percentRefund, _product.withdrawn);
+		emit ProductReturned(_product.id, _product.name, _product.price, msg.sender, _product.holder, false, _product.percentRefund, false, _product.withdrawn);
 	}
 
 }
