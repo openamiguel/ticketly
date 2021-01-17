@@ -101,6 +101,11 @@ contract Marketplace {
 		_; 
 	}
 
+	// Fallback function: only for paying Ethereum to contract
+	function () external payable {
+		require(msg.data.length == 0)
+	}
+
 	// msg.sender is the issuer
 	// Transaction fee for owner: 0 Wei
 	function createProduct(string calldata _name, uint _price, uint _percentRefund) external {
@@ -197,7 +202,7 @@ contract Marketplace {
 		// Check if buyer currently holds ticket
 		require(productsPerBuyerPerIssuer[_buyer][msg.sender] > 0, "Buyer has no tickets to return to this issuer."); 
 		// Check if value has enough ether attached
-		require(msg.value >= _product.price, "Insufficient ether attached to product return attempt.");
+		require(msg.value >= _product.price * _product.percentRefund / 100, "Insufficient ether attached to product return attempt.");
 		// Require that product has been purchased
 		require(_product.purchased, "Unpurchased products cannot be returned.");
 		// Require that issuer is valid
@@ -215,7 +220,10 @@ contract Marketplace {
 		// Update the product
 		products[_id] = _product; 
 		// Pay the buyer with Ether
-		address(_buyer).transfer(msg.value * _product.percentRefund / 100);
+		// Potentially serious bug: msg.value is transferred but refund is not!!!
+		// Currently, the code only works because the Javascript front end controls the amount of value to transfer!!!
+		uint refund = msg.value * _product.percentRefund / 100; 
+		address(_buyer).transfer(refund);
 		// Pay the owner with Ether
 		// address(owner).transfer(msg.value * percentFee / 100); 
 		// Update mapping
