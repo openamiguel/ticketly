@@ -117,6 +117,7 @@ class App extends Component {
                 ? <div id="loader" className="text-center"><p className="text-center">Loading...</p></div>
                 : <Main
                   products={this.state.products}
+                  account={this.state.account}
                   createProduct={this.createProduct}
                   withdrawProduct={this.withdrawProduct}
                   requestReturn={this.requestReturn}

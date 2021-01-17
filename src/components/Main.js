@@ -44,7 +44,7 @@ class Main extends Component {
         </form>
         <p>&nbsp;</p>
         <p>&nbsp;</p>
-        <h2>Buy/Return Product</h2>
+        <h2>Product Catalog</h2>
         <table className="table">
           <thead>
             <tr>
@@ -72,7 +72,7 @@ class Main extends Component {
                   <td>{product.returnRequested.toString()}</td>
                   <td>{product.withdrawn.toString()}</td>
                   <td>
-                    { !product.purchased && !product.withdrawn // && window.web3.eth.accounts[0] !== product.issuer
+                    { !product.purchased && !product.withdrawn && this.props.account !== product.issuer
                       ? <button
                           name={product.id}
                           value={product.price}
@@ -80,27 +80,27 @@ class Main extends Component {
                             this.props.purchaseProduct(event.target.name, event.target.value)
                           }}
                         >
-                          Buy
+                          Buy Product
                         </button>
                       : null
                     }
                     </td>
                   <td>
-                    { product.purchased && product.percentRefund > 0 // && window.web3.eth.accounts[0] === product.issuer
+                    { product.purchased && product.percentRefund > 0 && this.props.account === product.issuer
                       ? <button
                           name={product.id}
                           value={product.price}
                           onClick={(event) => {
-                            this.props.returnProduct(event.target.name, event.target.value)
+                            this.props.returnProduct(event.target.name, event.target.value * product.percentRefund / 100)
                           }}
                         >
-                          Return
+                          Return Funds
                         </button>
                       : null
                     }
                     </td>
                   <td>
-                    { product.purchased && product.percentRefund > 0 && !product.returnRequested // && window.web3.eth.accounts[0] === product.holder
+                    { product.purchased && product.percentRefund > 0 && !product.returnRequested && this.props.account === product.holder
                       ? <button
                           name={product.id}
                           value={product.price}
@@ -114,7 +114,7 @@ class Main extends Component {
                     }
                     </td>
                   <td>
-                    { !product.withdrawn // && window.web3.utils.toChecksumAddress(window.web3.eth.defaultAccount) === window.web3.utils.toChecksumAddress(product.issuer)
+                    { !product.withdrawn && this.props.account === product.issuer
                       ? <button
                           name={product.id}
                           value={product.price}
@@ -122,7 +122,7 @@ class Main extends Component {
                             this.props.withdrawProduct(event.target.name)
                           }}
                         >
-                          Withdraw
+                          Withdraw Product
                         </button>
                       : null
                     }
