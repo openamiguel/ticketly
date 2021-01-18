@@ -64,7 +64,7 @@ class Main extends Component {
               return(
                 <tr key={key}>
                   <th scope="row">{product.id.toString()}</th>
-                  <td>{product.name}</td>
+                  <td>{window.web3.utils.toAscii(product.name)}</td>
                   <td>{window.web3.utils.fromWei(product.price.toString(), 'Ether')} Eth</td>
                   <td>{product.issuer}</td>
                   <td>{product.holder}</td>
