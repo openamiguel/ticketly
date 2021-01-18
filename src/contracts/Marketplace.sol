@@ -2,8 +2,8 @@ pragma solidity ^0.5.0;
 
 contract Marketplace {
 
-	string public name;
-	uint public productCount = 0;
+	bytes32 public name;
+	uint public productCount;
 	uint public maxProductsPerBuyerPerIssuer = 2; 
 	uint public percentFee = 3; // MUST NEVER BE ZERO!!!
 
@@ -12,77 +12,38 @@ contract Marketplace {
 	mapping(uint => Product) public products;
 	mapping(address => mapping(address => uint)) public productsPerBuyerPerIssuer; 
 
+	// Note on uint: uint256 by default, aiiowing 2**256-1 ~ 1.16e77 unique tickets
 	struct Product {
-		uint id; // Unique ticket ID
-		string name; // Location of ticket in venue
-		uint price; // Price in Ether? Wei?
 		address payable issuer; // Issuer of ticket (e.g., event host, trusted third party)
 		address payable holder; // Holder of ticket
-		bool purchased;
+		bytes32 name; // Location of ticket in venue
+		uint id; // Unique ticket ID
+		uint price; // Price in Ether? Wei?
 		uint percentRefund; // Non-refundable products (percentRefund == 0) can be purchased but not returned
+		bool purchased; // Purchased products cannot be bought again
 		bool returnRequested; // Buyer can request refunds, but seller must unilaterally approve requests
-		bool withdrawn; // withdrawn products can be returned but not purchased
+		bool withdrawn; // Withdrawn products can be returned but not purchased
 	}
 
 	event ProductCreated(
-		uint id,
-		string name,
-		uint price,
 		address payable issuer,
 		address payable holder,
-		bool purchased, 
+		bytes32 name,
+		uint id,
+		uint price,
 		uint percentRefund, 
+		bool purchased, 
 		bool returnRequested, 
 		bool withdrawn
 	);
 
-	event ProductWithdrawn(
-		uint id,
-		string name,
-		uint price,
-		address payable issuer,
-		address payable holder,
-		bool purchased, 
-		uint percentRefund, 
-		bool returnRequested, 
-		bool withdrawn
-	);
+	event ProductWithdrawn(uint id);
 
-	event ReturnRequested(
-		uint id,
-		string name,
-		uint price,
-		address payable issuer,
-		address payable holder,
-		bool purchased, 
-		uint percentRefund, 
-		bool returnRequested, 
-		bool withdrawn
-	);
+	event ReturnRequested(uint id);
 
-	event ProductPurchased(
-		uint id,
-		string name,
-		uint price,
-		address payable issuer,
-		address payable holder,
-		bool purchased, 
-		uint percentRefund, 
-		bool returnRequested, 
-		bool withdrawn
-	);
+	event ProductPurchased(uint id);
 
-	event ProductReturned(
-		uint id,
-		string name,
-		uint price,
-		address payable issuer,
-		address payable holder,
-		bool purchased, 
-		uint percentRefund, 
-		bool returnRequested, 
-		bool withdrawn
-	);
+	event ProductReturned(uint id);
 
 	constructor() public {
 		name = "Ticketly";
@@ -109,8 +70,11 @@ contract Marketplace {
 	// msg.sender is the issuer
 	// Transaction fee for owner: 0 Wei
 	function createProduct(string calldata _name, uint _price, uint _percentRefund) external {
+		uint len = bytes(_name).length; 
 		// Require a valid name
-		require(bytes(_name).length > 0, "Invalid name passed to product creation function."); 
+		require(len > 0, "Invalid name passed to product creation function."); 
+		// Require a short name
+		require(len <= 32, "Name passed to product creation function is too long."); 
 		// Require a valid price (so that 1% of the minimum price = 1 wei)
 		require(_price >= 100, "Insufficiently low price passed to product creation function."); 
 		// Require a valid percent
@@ -120,8 +84,20 @@ contract Marketplace {
 		// Create product
 		products[productCount] = Product(productCount, _name, _price, msg.sender, msg.sender, false, _percentRefund, false, false);
 		// Trigger an event
-		emit ProductCreated(productCount, _name, _price, msg.sender, msg.sender, false, _percentRefund, false, false);
+		emit ProductCreated(msg.sender, msg.sender, _name, productCount, _price, _percentRefund, false, false, false);
 	}
+
+	event ProductCreated(
+		address payable issuer,
+		address payable holder,
+		string name,
+		uint id,
+		uint price,
+		uint percentRefund, 
+		bool purchased, 
+		bool returnRequested, 
+		bool withdrawn
+	);
 
 	// msg.sender is the issuer
 	// Irreversibly withdraws products[_id] from the market
@@ -135,7 +111,7 @@ contract Marketplace {
 		// Update the product
 		products[_id] = _product; 
 		// Trigger an event
-		emit ProductWithdrawn(_product.id, _product.name, _product.price, msg.sender, _product.holder, _product.purchased, _product.percentRefund, _product.returnRequested, true);
+		emit ProductWithdrawn(_product.id);
 	}
 
 	// msg.sender is the buyer
@@ -154,7 +130,7 @@ contract Marketplace {
 		// Update the product
 		products[_id] = _product; 
 		// Trigger an event
-		emit ReturnRequested(_product.id, _product.name, _product.price, _product.issuer, msg.sender, true, _product.percentRefund, true, _product.withdrawn);
+		emit ReturnRequested(_product.id);
 	}
 
 	// msg.sender is the buyer
@@ -187,7 +163,7 @@ contract Marketplace {
 		// Update mapping
 		productsPerBuyerPerIssuer[msg.sender][_issuer]++; 
 		// Trigger event
-		emit ProductPurchased(_product.id, _product.name, _product.price, _product.issuer, msg.sender, true, _product.percentRefund, _product.returnRequested, false);
+		emit ProductPurchased(_product.id);
 	}
 
 	// msg.sender is the issuer
@@ -229,7 +205,7 @@ contract Marketplace {
 		// Update mapping
 		productsPerBuyerPerIssuer[_buyer][msg.sender]--; 
 		// Trigger event
-		emit ProductReturned(_product.id, _product.name, _product.price, msg.sender, _product.holder, false, _product.percentRefund, false, _product.withdrawn);
+		emit ProductReturned(_product.id);
 	}
 
 }
