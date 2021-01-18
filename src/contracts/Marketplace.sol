@@ -64,7 +64,7 @@ contract Marketplace {
 
 	// Fallback function: only for paying Ethereum to contract
 	function () external payable {
-		require(msg.data.length == 0)
+		require(msg.data.length == 0); 
 	}
 
 	// msg.sender is the issuer
@@ -82,22 +82,34 @@ contract Marketplace {
 		// Increment product count
 		productCount++;
 		// Create product
-		products[productCount] = Product(msg.sender, msg.sender, _name, productCount, _price, _percentRefund, false, false, false);
+		bytes32 _name32 = stringToBytes32(_name);
+		// products[productCount] = Product(msg.sender, msg.sender, _name32, productCount, _price, _percentRefund, false, false, false);
+		Product memory _product;
+		_product.issuer = msg.sender;
+		_product.holder = msg.sender;
+		_product.name = _name32;
+		_product.id = productCount; 
+		_product.price = _price; 
+		_product.percentRefund = _percentRefund;
+		_product.purchased = false;
+		_product.returnRequested = false;
+		_product.withdrawn = false;
+		products[productCount] = _product;
 		// Trigger an event
-		emit ProductCreated(msg.sender, msg.sender, _name, productCount, _price, _percentRefund, false, false, false);
+		emit ProductCreated(msg.sender, msg.sender, _name32, productCount, _price, _percentRefund, false, false, false);
 	}
 
-	event ProductCreated(
-		address payable issuer,
-		address payable holder,
-		string name,
-		uint64 id,
-		uint128 price,
-		uint8 percentRefund, 
-		bool purchased, 
-		bool returnRequested, 
-		bool withdrawn
-	);
+	// Convert string to bytes32
+	// Source: https://ethereum.stackexchange.com/questions/9142/how-to-convert-a-string-to-bytes32
+	function stringToBytes32(string memory source) private pure returns (bytes32 result) {
+	    bytes memory tempEmptyStringTest = bytes(source);
+	    if (tempEmptyStringTest.length == 0) {
+	        return 0x0;
+	    }
+	    assembly {
+	        result := mload(add(source, 32))
+	    }
+	}
 
 	// msg.sender is the issuer
 	// Irreversibly withdraws products[_id] from the market
