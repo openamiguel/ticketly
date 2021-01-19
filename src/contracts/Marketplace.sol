@@ -92,119 +92,124 @@ contract Marketplace {
 		emit ProductCreated(msg.sender, msg.sender, _name32, productCount, _price, _percentRefund, false, false, false);
 	}
 
-	// msg.sender is the issuer
-	// Irreversibly withdraws products[_id] from the market
-	function withdrawProduct(uint64 _id) external {
-		// Check if product has valid ID
-		require(_id > 0 && _id <= productCount, "Invalid ID passed to withdraw");
-		// Fetch the product
-		Product memory _product = products[_id];
-		// Require that issuer is valid
-		require(_product.issuer == msg.sender, "Unauthorized withdrawal attempt"); 
-		// Make withdrawn
-		_product.withdrawn = true; 
-		// Update the product
-		products[_id] = _product; 
-		// Trigger an event
-		emit ProductWithdrawn(_product.id);
-	}
+	// code = 1: withdrawProduct
+	// code = 2: requestReturn
+	// code = 3: purchaseProduct
+	// code = 4: returnProduct
+	function morphProduct(uint64 _id, uint8 code) external payable {
 
-	// msg.sender is the buyer
-	// Requests for issuer to refund item
-	function requestReturn(uint64 _id) external {
-		// Check if product has valid ID
-		require(_id > 0 && _id <= productCount, "Invalid ID passed to request");
-		// Fetch the product
-		Product memory _product = products[_id];
-		// Require that product is refundable
-		require(_product.percentRefund > 0, "Product is non-refundable"); 
-		// Require that product has been purchased
-		require(_product.purchased); 
-		// Require that buyer is valid
-		require(_product.holder == msg.sender, "Unauthorized request attempt"); 
-		// Request return
-		_product.returnRequested = true; 
-		// Update the product
-		products[_id] = _product; 
-		// Trigger an event
-		emit ReturnRequested(_product.id);
-	}
+		// Check if code is valid
+		require(code > 0 && code < 5, "Invalid code passed to morph");
 
-	// msg.sender is the buyer
-	// Transaction fee for owner: percentFee pct of ticket price
-	function purchaseProduct(uint64 _id) external payable {
-		// Check if product has valid ID
-		require(_id > 0 && _id <= productCount, "Invalid ID passed to purchase");
-		// Fetch the product
-		Product memory _product = products[_id];
-		// Fetch the issuer
-		address payable _issuer = _product.issuer;
-		// Check if buyer has bought too many tickets
-		require(productsPerBuyerPerIssuer[msg.sender][_issuer] < maxProductsPerBuyerPerIssuer, "Threshold for products reached"); 
-		// Check if value has enough ether attached
-		require(msg.value >= _product.price, "Insutticient funds for purchase");
-		// Require that product has not been purchased
-		require(!_product.purchased, "Product already purchased");
-		// Require that buyer is not issuer
-		require(_issuer != msg.sender, "Circular purchase attempt"); 
-		// Require that the product is not withdrawn
-		require(!_product.withdrawn, "Product withdrawn"); 
-		// Transfer holder status to buyer
-		_product.holder = msg.sender; 
-		// Mark as purchased
-		_product.purchased = true;
-		// Update the product
-		products[_id] = _product; 
-		// Pay the issuer with Ether
-		address(_issuer).transfer(msg.value);
-		// Pay the owner with Ether
-		// address(owner).transfer(percentFee * msg.value / 100); 
-		// Update mapping
-		productsPerBuyerPerIssuer[msg.sender][_issuer]++; 
-		// Trigger event
-		emit ProductPurchased(_product.id);
-	}
+		// Irreversibly withdraws products[_id] from the market
+		if (code == 1) {
+			// Check if product has valid ID
+			require(_id > 0 && _id <= productCount, "Invalid ID passed to withdraw");
+			// Fetch the product
+			Product memory _product = products[_id];
+			// Require that issuer is valid
+			require(_product.issuer == msg.sender, "Unauthorized withdrawal attempt"); 
+			// Make withdrawn
+			_product.withdrawn = true; 
+			// Update the product
+			products[_id] = _product; 
+			// Trigger an event
+			emit ProductWithdrawn(_product.id);
+		}
 
-	// msg.sender is the issuer
-	// Transaction fee for owner: percentFee pct of ticket price
-	function returnProduct(uint64 _id) external payable {
-		// Check if product has valid ID
-		require(_id > 0 && _id <= productCount, "Invalid ID passed to return");
-		// Fetch the product
-		Product memory _product = products[_id];
-		// Fetch the holder
-		address payable _buyer = _product.holder;
-		// Require that issuer is valid
-		require(_product.issuer == msg.sender, "Unauthorized return attempt"); 
-		// Check if buyer currently holds ticket
-		require(productsPerBuyerPerIssuer[_buyer][msg.sender] > 0, "No tickets to return"); 
-		// Check if value has enough ether attached
-		require(msg.value >= _product.price * _product.percentRefund / 100, "Insutticient funds for return");
-		// Require that product has been purchased
-		require(_product.purchased, "Product not yet purchased");
-		// Require that buyer is not issuer
-		require(_buyer != msg.sender, "Circular return attempt"); 
-		// Require that product is refundable
-		require(_product.percentRefund > 0, "Product is non-refundable"); 
-		// Transfer holdership back to issuer
-		_product.holder = msg.sender; 
-		// Revert purchased status
-		_product.purchased = false;
-		// Delete history of return request (if any)
-		_product.returnRequested = false; 
-		// Update the product
-		products[_id] = _product; 
-		// Pay the buyer with Ether
-		// Potentially serious bug: msg.value is transferred but refund is not!!!
-		// Currently, the code only works because the Javascript front end controls the amount of value to transfer!!!
-		uint refund = msg.value * _product.percentRefund / 100; 
-		address(_buyer).transfer(refund);
-		// Pay the owner with Ether
-		// address(owner).transfer(msg.value * percentFee / 100); 
-		// Update mapping
-		productsPerBuyerPerIssuer[_buyer][msg.sender]--; 
-		// Trigger event
-		emit ProductReturned(_product.id);
-	}
+		// Requests for issuer to refund item
+		else if (code == 2) {
+			// Check if product has valid ID
+			require(_id > 0 && _id <= productCount, "Invalid ID passed to request");
+			// Fetch the product
+			Product memory _product = products[_id];
+			// Require that product is refundable
+			require(_product.percentRefund > 0, "Product is non-refundable"); 
+			// Require that product has been purchased
+			require(_product.purchased); 
+			// Require that buyer is valid
+			require(_product.holder == msg.sender, "Unauthorized request attempt"); 
+			// Request return
+			_product.returnRequested = true; 
+			// Update the product
+			products[_id] = _product; 
+			// Trigger an event
+			emit ReturnRequested(_product.id);
+		}
 
+		// Transaction fee for owner: percentFee pct of ticket price
+		else if (code == 3) {
+			// Check if product has valid ID
+			require(_id > 0 && _id <= productCount, "Invalid ID passed to purchase");
+			// Fetch the product
+			Product memory _product = products[_id];
+			// Fetch the issuer
+			address payable _issuer = _product.issuer;
+			// Check if buyer has bought too many tickets
+			require(productsPerBuyerPerIssuer[msg.sender][_issuer] < maxProductsPerBuyerPerIssuer, "Threshold for products reached"); 
+			// Check if value has enough ether attached
+			require(msg.value >= _product.price, "Insutticient funds for purchase");
+			// Require that product has not been purchased
+			require(!_product.purchased, "Product already purchased");
+			// Require that buyer is not issuer
+			require(_issuer != msg.sender, "Circular purchase attempt"); 
+			// Require that the product is not withdrawn
+			require(!_product.withdrawn, "Product withdrawn"); 
+			// Transfer holder status to buyer
+			_product.holder = msg.sender; 
+			// Mark as purchased
+			_product.purchased = true;
+			// Update the product
+			products[_id] = _product; 
+			// Pay the issuer with Ether
+			address(_issuer).transfer(msg.value);
+			// Pay the owner with Ether
+			// address(owner).transfer(percentFee * msg.value / 100); 
+			// Update mapping
+			productsPerBuyerPerIssuer[msg.sender][_issuer]++; 
+			// Trigger event
+			emit ProductPurchased(_product.id);
+		}
+
+		// Transaction fee for owner: percentFee pct of ticket price
+		else if (code == 4) {
+			// Check if product has valid ID
+			require(_id > 0 && _id <= productCount, "Invalid ID passed to return");
+			// Fetch the product
+			Product memory _product = products[_id];
+			// Fetch the holder
+			address payable _buyer = _product.holder;
+			// Require that issuer is valid
+			require(_product.issuer == msg.sender, "Unauthorized return attempt"); 
+			// Check if buyer currently holds ticket
+			require(productsPerBuyerPerIssuer[_buyer][msg.sender] > 0, "No tickets to return"); 
+			// Check if value has enough ether attached
+			require(msg.value >= _product.price * _product.percentRefund / 100, "Insutticient funds for return");
+			// Require that product has been purchased
+			require(_product.purchased, "Product not yet purchased");
+			// Require that buyer is not issuer
+			require(_buyer != msg.sender, "Circular return attempt"); 
+			// Require that product is refundable
+			require(_product.percentRefund > 0, "Product is non-refundable"); 
+			// Transfer holdership back to issuer
+			_product.holder = msg.sender; 
+			// Revert purchased status
+			_product.purchased = false;
+			// Delete history of return request (if any)
+			_product.returnRequested = false; 
+			// Update the product
+			products[_id] = _product; 
+			// Pay the buyer with Ether
+			// Potentially serious bug: msg.value is transferred but refund is not!!!
+			// Currently, the code only works because the Javascript front end controls the amount of value to transfer!!!
+			uint refund = msg.value * _product.percentRefund / 100; 
+			address(_buyer).transfer(refund);
+			// Pay the owner with Ether
+			// address(owner).transfer(msg.value * percentFee / 100); 
+			// Update mapping
+			productsPerBuyerPerIssuer[_buyer][msg.sender]--; 
+			// Trigger event
+			emit ProductReturned(_product.id);
+		}
+	}
 }
