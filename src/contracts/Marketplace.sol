@@ -2,23 +2,27 @@ pragma solidity ^0.5.0;
 
 contract Marketplace {
 
-	bytes32 public name;
-	uint64 public productCount;
-	uint8 public maxProductsPerBuyerPerIssuer = 2; 
-	uint8 public percentFee = 3; // MUST NEVER BE ZERO!!!
+	// Slot 1
+	address payable immutable owner; 
+	// Slot 2
+	bytes16 public immutable name;
+	uint64 public immutable productCount;
+	uint8 public constant maxProductsPerBuyerPerIssuer = 2; 
+	uint8 public constant percentFee = 3; // MUST NEVER BE ZERO!!!
 
-	address payable owner; 
-
-	mapping(uint64 => Product) public products;
-	mapping(address => mapping(address => uint32)) public productsPerBuyerPerIssuer; 
+	mapping(uint32 => Product) public products;
+	mapping(address => mapping(address => uint24)) public productsPerBuyerPerIssuer; 
 
 	// Note on uint: uint256 by default, aiiowing 2**256-1 ~ 1.16e77 unique tickets
 	struct Product {
+		// Slot 1
 		address payable issuer; // Issuer of ticket (e.g., event host, trusted third party)
+		// Slot 2
 		address payable holder; // Holder of ticket
-		bytes32 name; // Location of ticket in venue
-		uint64 id; // Unique ticket ID
-		uint128 price; // Price in Wei
+		// Slot 3
+		bytes15 name; // Location of ticket in venue (max: 15 characters)
+		uint32 id; // Unique ticket ID (max: 4.3 billion tickets)
+		uint72 price; // Price in Wei (max: 4722.4 Eth)
 		uint8 percentRefund; // Non-refundable products (percentRefund == 0) can be purchased but not returned
 		bool purchased; // Purchased products cannot be bought again
 		bool returnRequested; // Buyer can request refunds, but seller must unilaterally approve requests
@@ -28,22 +32,22 @@ contract Marketplace {
 	event ProductCreated(
 		address payable issuer,
 		address payable holder,
-		bytes32 name,
-		uint64 id,
-		uint128 price,
+		bytes15 name,
+		uint32 id,
+		uint72 price,
 		uint8 percentRefund, 
 		bool purchased, 
 		bool returnRequested, 
 		bool withdrawn
 	);
 
-	event ProductWithdrawn(uint64 id);
+	event ProductWithdrawn(uint32 id);
 
-	event ReturnRequested(uint64 id);
+	event ReturnRequested(uint32 id);
 
-	event ProductPurchased(uint64 id);
+	event ProductPurchased(uint32 id);
 
-	event ProductReturned(uint64 id);
+	event ProductReturned(uint32 id);
 
 	constructor() public {
 		name = "Ticketly";
@@ -57,7 +61,7 @@ contract Marketplace {
 
 	// msg.sender is the issuer
 	// Transaction fee for owner: 0 Wei
-	function createProduct(string calldata _name, uint64 _price, uint8 _percentRefund) external {
+	function createProduct(string memory _name, uint72 _price, uint8 _percentRefund) public {
 		uint len = bytes(_name).length; 
 		// Require a valid name
 		require(len > 0, "Invalid name passed to create"); 
@@ -73,10 +77,9 @@ contract Marketplace {
 		// Source: https://ethereum.stackexchange.com/questions/9142/how-to-convert-a-string-to-bytes32
 		bytes32 _name32;
 		assembly {
-	        _result := mload(add(_name, 32))
+	        _name32 := mload(add(_name, 32))
 	    }
 	    // Create product
-		// products[productCount] = Product(msg.sender, msg.sender, _name32, productCount, _price, _percentRefund, false, false, false);
 		Product memory _product;
 		_product.issuer = msg.sender;
 		_product.holder = msg.sender;
@@ -92,21 +95,22 @@ contract Marketplace {
 		emit ProductCreated(msg.sender, msg.sender, _name32, productCount, _price, _percentRefund, false, false, false);
 	}
 
-	// code = 1: withdrawProduct
-	// code = 2: requestReturn
-	// code = 3: purchaseProduct
-	// code = 4: returnProduct
-	function morphProduct(uint64 _id, uint8 code) external payable {
+	// _code = 1: withdrawProduct
+	// _code = 2: requestReturn
+	// _code = 3: purchaseProduct
+	// _code = 4: returnProduct
+	function morphProduct(uint32 _id, uint8 _code) external payable {
 
 		// Check if code is valid
-		require(code > 0 && code < 5, "Invalid code passed to morph");
+		require(_code > 0 && _code < 5, "Invalid code passed to morph");
+		// Check if product has valid ID
+		require(_id > 0 && _id <= productCount, "Invalid ID passed to morph"); 
+
+		// Fetch the product
+		Product memory _product = products[_id];
 
 		// Irreversibly withdraws products[_id] from the market
-		if (code == 1) {
-			// Check if product has valid ID
-			require(_id > 0 && _id <= productCount, "Invalid ID passed to withdraw");
-			// Fetch the product
-			Product memory _product = products[_id];
+		if (_code == 1) {
 			// Require that issuer is valid
 			require(_product.issuer == msg.sender, "Unauthorized withdrawal attempt"); 
 			// Make withdrawn
@@ -118,11 +122,7 @@ contract Marketplace {
 		}
 
 		// Requests for issuer to refund item
-		else if (code == 2) {
-			// Check if product has valid ID
-			require(_id > 0 && _id <= productCount, "Invalid ID passed to request");
-			// Fetch the product
-			Product memory _product = products[_id];
+		else if (_code == 2) {
 			// Require that product is refundable
 			require(_product.percentRefund > 0, "Product is non-refundable"); 
 			// Require that product has been purchased
@@ -138,11 +138,7 @@ contract Marketplace {
 		}
 
 		// Transaction fee for owner: percentFee pct of ticket price
-		else if (code == 3) {
-			// Check if product has valid ID
-			require(_id > 0 && _id <= productCount, "Invalid ID passed to purchase");
-			// Fetch the product
-			Product memory _product = products[_id];
+		else if (_code == 3) {
 			// Fetch the issuer
 			address payable _issuer = _product.issuer;
 			// Check if buyer has bought too many tickets
@@ -172,11 +168,7 @@ contract Marketplace {
 		}
 
 		// Transaction fee for owner: percentFee pct of ticket price
-		else if (code == 4) {
-			// Check if product has valid ID
-			require(_id > 0 && _id <= productCount, "Invalid ID passed to return");
-			// Fetch the product
-			Product memory _product = products[_id];
+		else if (_code == 4) {
 			// Fetch the holder
 			address payable _buyer = _product.holder;
 			// Require that issuer is valid
