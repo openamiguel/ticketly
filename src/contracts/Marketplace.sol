@@ -1,12 +1,14 @@
-pragma solidity ^0.5.0;
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.6.0;
 
 contract Marketplace {
 
 	// Slot 1
-	address payable immutable owner; 
+	address payable owner; 
 	// Slot 2
-	bytes16 public immutable name;
-	uint64 public immutable productCount;
+	bytes16 public name;
+	uint32 public productCount;
 	uint8 public constant maxProductsPerBuyerPerIssuer = 2; 
 	uint8 public constant percentFee = 3; // MUST NEVER BE ZERO!!!
 
@@ -30,8 +32,11 @@ contract Marketplace {
 	}
 
 	event ProductCreated(
+		// Slot 1
 		address payable issuer,
+		// Slot 2
 		address payable holder,
+		// Slot 3
 		bytes15 name,
 		uint32 id,
 		uint72 price,
@@ -54,10 +59,16 @@ contract Marketplace {
 		owner = msg.sender; 
 	}
 
-	// Fallback function: only for paying Ethereum to contract
-	function () external payable {
+	// Receive function: only for paying Ethereum to contract
+	receive() external payable {
+		// Empty
+	}
+
+	// Fallback function: miscellaneous things
+	fallback() external {
 		require(msg.data.length == 0); 
 	}
+
 
 	// msg.sender is the issuer
 	// Transaction fee for owner: 0 Wei
@@ -73,17 +84,17 @@ contract Marketplace {
 		require(_percentRefund >= 0 && _percentRefund <= 100); 
 		// Increment product count
 		productCount++;
-		// Convert string name to bytes32
+		// Convert string name to bytes15
 		// Source: https://ethereum.stackexchange.com/questions/9142/how-to-convert-a-string-to-bytes32
-		bytes32 _name32;
+		bytes15 _name15;
 		assembly {
-	        _name32 := mload(add(_name, 32))
+	        _name15 := mload(add(_name, 15))
 	    }
 	    // Create product
 		Product memory _product;
 		_product.issuer = msg.sender;
 		_product.holder = msg.sender;
-		_product.name = _name32;
+		_product.name = _name15;
 		_product.id = productCount; 
 		_product.price = _price; 
 		_product.percentRefund = _percentRefund;
@@ -92,7 +103,7 @@ contract Marketplace {
 		_product.withdrawn = false;
 		products[productCount] = _product;
 		// Trigger an event
-		emit ProductCreated(msg.sender, msg.sender, _name32, productCount, _price, _percentRefund, false, false, false);
+		emit ProductCreated(msg.sender, msg.sender, _name15, productCount, _price, _percentRefund, false, false, false);
 	}
 
 	// _code = 1: withdrawProduct
@@ -158,7 +169,7 @@ contract Marketplace {
 			// Update the product
 			products[_id] = _product; 
 			// Pay the issuer with Ether
-			address(_issuer).transfer(msg.value);
+			_issuer.transfer(msg.value);
 			// Pay the owner with Ether
 			// address(owner).transfer(percentFee * msg.value / 100); 
 			// Update mapping
@@ -195,7 +206,7 @@ contract Marketplace {
 			// Potentially serious bug: msg.value is transferred but refund is not!!!
 			// Currently, the code only works because the Javascript front end controls the amount of value to transfer!!!
 			uint refund = msg.value * _product.percentRefund / 100; 
-			address(_buyer).transfer(refund);
+			_buyer.transfer(refund);
 			// Pay the owner with Ether
 			// address(owner).transfer(msg.value * percentFee / 100); 
 			// Update mapping
