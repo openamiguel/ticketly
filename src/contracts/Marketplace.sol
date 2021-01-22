@@ -109,7 +109,7 @@ contract Marketplace {
 		_product.purchased = false;
 		_product.returnRequested = false;
 		_product.withdrawn = false;
-		_product.creationTime = now;
+		_product.creationTime = uint32(now);
 		_product.duration = _duration; 
 		_product.refundWindow = _refundWindow; 
 		products[productCount] = _product;
