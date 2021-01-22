@@ -15,7 +15,7 @@ contract Marketplace {
 	mapping(uint32 => Product) public products;
 	mapping(address => mapping(address => uint24)) public productsPerBuyerPerIssuer; 
 
-	// Note on uint: uint256 by default, aiiowing 2**256-1 ~ 1.16e77 unique tickets
+	// Note on uint: uint256 by default, aiiowing 2**256-1 ~ 1 possibilities
 	struct Product {
 		// Slot 1
 		address payable issuer; // Issuer of ticket (e.g., event host, trusted third party)
@@ -29,6 +29,10 @@ contract Marketplace {
 		bool purchased; // Purchased products cannot be bought again
 		bool returnRequested; // Buyer can request refunds, but seller must unilaterally approve requests
 		bool withdrawn; // Withdrawn products can be returned but not purchased
+		// Slot 4
+		uint32 creationTime; // The code WILL break at 6:28:15 am UTC on February 7, 2106
+		uint32 duration; // creationTime + duration is the ticket expiry time (seconds)
+		uint32 refundWindow; // creationTime + duration - refundWindow is the last opportunity to return with a refund (seconds)
 	}
 
 	event ProductCreated(
@@ -43,7 +47,10 @@ contract Marketplace {
 		uint8 percentRefund, 
 		bool purchased, 
 		bool returnRequested, 
-		bool withdrawn
+		bool withdrawn,
+		uint32 creationTime,
+		uint32 duration, 
+		uint32 refundWindow
 	);
 
 	event ProductWithdrawn(uint32 id);
@@ -69,19 +76,20 @@ contract Marketplace {
 		require(msg.data.length == 0); 
 	}
 
-
 	// msg.sender is the issuer
 	// Transaction fee for owner: 0 Wei
-	function createProduct(string memory _name, uint72 _price, uint8 _percentRefund) public {
+	function createProduct(string memory _name, uint72 _price, uint8 _percentRefund, uint32 _duration, uint32 _refundWindow) public {
 		uint len = bytes(_name).length; 
 		// Require a valid name
 		require(len > 0, "Invalid name passed to create"); 
 		// Require a short name
-		require(len <= 32, "Very long name passed to create"); 
+		require(len <= 15, "Very long name passed to create"); 
 		// Require a valid price (so that 1% of the minimum price = 1 wei)
 		require(_price >= 100, "Very low price passed to create"); 
 		// Require a valid percent
-		require(_percentRefund >= 0 && _percentRefund <= 100); 
+		require(_percentRefund >= 0 && _percentRefund <= 100, "Invalid percentage passed to create"); 
+		// Require valid duration
+		require(_duration > _refundWindow, "Invalid duration passed to create"); 
 		// Increment product count
 		productCount++;
 		// Convert string name to bytes15
@@ -101,9 +109,12 @@ contract Marketplace {
 		_product.purchased = false;
 		_product.returnRequested = false;
 		_product.withdrawn = false;
+		_product.creationTime = now;
+		_product.duration = _duration; 
+		_product.refundWindow = _refundWindow; 
 		products[productCount] = _product;
 		// Trigger an event
-		emit ProductCreated(msg.sender, msg.sender, _name15, productCount, _price, _percentRefund, false, false, false);
+		emit ProductCreated(msg.sender, msg.sender, _name15, productCount, _price, _percentRefund, false, false, false, _product.creationTime, _duration, _refundWindow);
 	}
 
 	// _code = 1: withdrawProduct
@@ -124,6 +135,8 @@ contract Marketplace {
 		if (_code == 1) {
 			// Require that issuer is valid
 			require(_product.issuer == msg.sender, "Unauthorized withdrawal attempt"); 
+			// Require that the product is not expired
+			require(now < _product.creationTime + _product.duration, "Product expired"); 
 			// Make withdrawn
 			_product.withdrawn = true; 
 			// Update the product
@@ -140,6 +153,8 @@ contract Marketplace {
 			require(_product.purchased); 
 			// Require that buyer is valid
 			require(_product.holder == msg.sender, "Unauthorized request attempt"); 
+			// Require that the product is not expired
+			require(now < _product.creationTime + _product.duration, "Product expired"); 
 			// Request return
 			_product.returnRequested = true; 
 			// Update the product
@@ -148,7 +163,7 @@ contract Marketplace {
 			emit ReturnRequested(_product.id);
 		}
 
-		// Transaction fee for owner: percentFee pct of ticket price
+		// Purchases ticket from issuer
 		else if (_code == 3) {
 			// Fetch the issuer
 			address payable _issuer = _product.issuer;
@@ -162,6 +177,8 @@ contract Marketplace {
 			require(_issuer != msg.sender, "Circular purchase attempt"); 
 			// Require that the product is not withdrawn
 			require(!_product.withdrawn, "Product withdrawn"); 
+			// Require that the product is not expired
+			require(now < _product.creationTime + _product.duration, "Product expired"); 
 			// Transfer holder status to buyer
 			_product.holder = msg.sender; 
 			// Mark as purchased
@@ -178,7 +195,7 @@ contract Marketplace {
 			emit ProductPurchased(_product.id);
 		}
 
-		// Transaction fee for owner: percentFee pct of ticket price
+		// Returns ticket to issuer
 		else if (_code == 4) {
 			// Fetch the holder
 			address payable _buyer = _product.holder;
@@ -186,14 +203,36 @@ contract Marketplace {
 			require(_product.issuer == msg.sender, "Unauthorized return attempt"); 
 			// Check if buyer currently holds ticket
 			require(productsPerBuyerPerIssuer[_buyer][msg.sender] > 0, "No tickets to return"); 
-			// Check if value has enough ether attached
-			require(msg.value >= _product.price * _product.percentRefund / 100, "Insutticient funds for return");
 			// Require that product has been purchased
 			require(_product.purchased, "Product not yet purchased");
 			// Require that buyer is not issuer
 			require(_buyer != msg.sender, "Circular return attempt"); 
-			// Require that product is refundable
-			require(_product.percentRefund > 0, "Product is non-refundable"); 
+
+			uint8 _percentRefund; 
+
+			// If ticket expired, return without refund
+			if (now >= _product.creationTime + _product.duration) {
+				_percentRefund = 0; 
+			}
+
+			// Otherwise, if product is withdrawn, give a full refund regardless of _product.percentRefund
+			if (_product.withdrawn) {
+				// Check if value has enough ether attached
+				require(msg.value >= _product.price, "Insutticient funds for return");
+				_percentRefund = 100; 
+			}
+
+			// Otherwise, trigger the vanilla logic for refunds
+			else {
+				// Require that product is refundable
+				require(_product.percentRefund > 0, "Product is non-refundable"); 
+				// Require that product has not reached non-refundable window
+				require(now < _product.creationTime + _product.duration - _product.refundWindow, "Product has passed refund window"); 
+				// Check if value has enough ether attached
+				require(msg.value >= _product.price * _product.percentRefund / 100, "Insutticient funds for return");
+				_percentRefund = _product.percentRefund; 
+			}
+
 			// Transfer holdership back to issuer
 			_product.holder = msg.sender; 
 			// Revert purchased status
@@ -205,7 +244,7 @@ contract Marketplace {
 			// Pay the buyer with Ether
 			// Potentially serious bug: msg.value is transferred but refund is not!!!
 			// Currently, the code only works because the Javascript front end controls the amount of value to transfer!!!
-			uint refund = msg.value * _product.percentRefund / 100; 
+			uint refund = msg.value * _percentRefund / 100; 
 			_buyer.transfer(refund);
 			// Pay the owner with Ether
 			// address(owner).transfer(msg.value * percentFee / 100); 
