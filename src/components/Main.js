@@ -11,7 +11,9 @@ class Main extends Component {
           const name = this.productName.value
           const price = window.web3.utils.toWei(this.productPrice.value.toString(), 'Ether')
           const refund = this.productPercentRefundable.value
-          this.props.createProduct(name, price, refund)
+          const duration = this.productDuration.value
+          const refundWindow = this.productRefundWindow.value
+          this.props.createProduct(name, price, refund, duration, refundWindow)
         }}>
           <div className="form-group mr-sm-2">
             <input
@@ -40,6 +42,24 @@ class Main extends Component {
               placeholder="Percent Refundable"
               required />
           </div>
+          <div className="form-group mr-sm-2">
+            <input
+              id="productDuration"
+              type="number"
+              ref={(input) => { this.productDuration = input }}
+              className="form-control"
+              placeholder="Duration (seconds)"
+              required />
+          </div>
+          <div className="form-group mr-sm-2">
+            <input
+              id="productRefundWindow"
+              type="number"
+              ref={(input) => { this.productRefundWindow = input }}
+              className="form-control"
+              placeholder="Refund Window (seconds)"
+              required />
+          </div>
           <button type="submit" className="btn btn-primary">Add Product</button>
         </form>
         <p>&nbsp;</p>
@@ -56,6 +76,9 @@ class Main extends Component {
               <th scope="col">Percent Refundable</th>
               <th scope="col">Return Requested</th>
               <th scope="col">Withdrawn</th>
+              <th scope="col">Creation Time</th>
+              <th scope="col">Duration</th>
+              <th scope="col">Refund Window</th>
               <th scope="col"></th>
             </tr>
           </thead>
@@ -71,13 +94,16 @@ class Main extends Component {
                   <td>{product.percentRefund.toString()}</td>
                   <td>{product.returnRequested.toString()}</td>
                   <td>{product.withdrawn.toString()}</td>
+                  <td>{product.creationTime.toString()}</td>
+                  <td>{product.duration.toString()}</td>
+                  <td>{product.refundWindow.toString()}</td>
                   <td>
                     { !product.purchased && !product.withdrawn && this.props.account !== product.issuer
                       ? <button
                           name={product.id}
                           value={product.price}
                           onClick={(event) => {
-                            this.props.purchaseProduct(event.target.name, event.target.value)
+                            this.props.morphProduct(event.target.name, 3, event.target.value)
                           }}
                         >
                           Buy Product
@@ -86,12 +112,12 @@ class Main extends Component {
                     }
                     </td>
                   <td>
-                    { product.purchased && product.percentRefund > 0 && this.props.account === product.issuer
+                    { product.purchased && this.props.account === product.issuer
                       ? <button
                           name={product.id}
                           value={product.price}
                           onClick={(event) => {
-                            this.props.returnProduct(event.target.name, event.target.value * product.percentRefund / 100)
+                            this.props.morphProduct(event.target.name, 4, event.target.value * product.percentRefund / 100)
                           }}
                         >
                           Return Funds
@@ -105,7 +131,7 @@ class Main extends Component {
                           name={product.id}
                           value={product.price}
                           onClick={(event) => {
-                            this.props.requestReturn(event.target.name, event.target.value)
+                            this.props.morphProduct(event.target.name, 2, 0)
                           }}
                         >
                           Request Return
@@ -119,7 +145,7 @@ class Main extends Component {
                           name={product.id}
                           value={product.price}
                           onClick={(event) => {
-                            this.props.withdrawProduct(event.target.name)
+                            this.props.morphProduct(event.target.name, 1, 0)
                           }}
                         >
                           Withdraw Product
