@@ -12,14 +12,14 @@ contract Marketplace {
 	uint8 public constant maxProductsPerBuyerPerIssuer = 2; 
 	uint8 public constant percentFee = 3; // MUST NEVER BE ZERO!!!
 	// Slot 3
-	uint72 public constant maximumPrice = 500000000000000000 wei; // 0.5 eth
+	uint72 public constant maximumPrice = 5e17 wei; // 0.5 eth
 	uint8 public constant maxProductsPerIssuer = 5; 
 	bool private stopped = false; 
 
 	mapping(uint32 => Product) public products;
 	mapping(address => mapping(address => uint24)) public productsPerBuyerPerIssuer; 
 	mapping(address => uint24) public productsPerIssuer; 
-	mapping(address => uint72) public balancePerIssuer; 
+	mapping(address => uint256) private balancePerCustomer; 
 
 	// Note on uint: uint256 by default, aiiowing 2**256-1 ~ 1 possibilities
 	struct Product {
@@ -95,6 +95,18 @@ contract Marketplace {
 	    stopped = !stopped;
 	}
 
+	function deposit(uint256 amount) public payable {
+		require(msg.value == amount); 
+		balancePerCustomer[msg.sender] += amount; 
+	}
+
+	function withdraw(uint256 amount) public {
+		require(amount <= balancePerCustomer[msg.sender]); 
+		balancePerCustomer[msg.sender] -= amount; 
+		(bool success, ) = payable(msg.sender).call{value:amount}("");
+    	require(success, "Transfer failed.");
+	}
+
 	// msg.sender is the issuer
 	// Transaction fee for owner: 0 Wei
 	function createProduct(string memory _name, uint72 _price, uint8 _percentRefund, uint32 _duration, uint32 _refundWindow) stopInEmergency public {
@@ -146,7 +158,7 @@ contract Marketplace {
 	// _code = 2: requestReturn
 	// _code = 3: purchaseProduct
 	// _code = 4: returnProduct
-	function morphProduct(uint32 _id, uint8 _code) external payable {
+	function morphProduct(uint32 _id, uint8 _code) external { // payable
 
 		// Check if code is valid
 		require(_code > 0 && _code < 5, "Invalid code passed to morph");
@@ -195,7 +207,7 @@ contract Marketplace {
 			// Check if buyer has bought too many tickets
 			require(productsPerBuyerPerIssuer[msg.sender][_issuer] < maxProductsPerBuyerPerIssuer, "Threshold for products reached"); 
 			// Check if value has enough ether attached
-			require(msg.value >= _product.price, "Insutticient funds for purchase");
+			require(balancePerCustomer[msg.sender] >= msg.value && msg.value >= _product.price, "Insutticient funds for purchase");
 			// Require that product has not been purchased
 			require(!_product.purchased, "Product already purchased");
 			// Require that buyer is not issuer
@@ -212,12 +224,9 @@ contract Marketplace {
 			products[_id] = _product; 
 			// Update mapping
 			productsPerBuyerPerIssuer[msg.sender][_issuer]++; 
-			// Pay the issuer with Ether
-			(bool success, ) = payable(_issuer).call{value:msg.value}("");
-        	require(success, "Transfer failed.");
-			// _issuer.transfer(msg.value);
-			// Pay the owner with Ether
-			// address(owner).transfer(percentFee * msg.value / 100); 
+			// Buyer balance sends funds to issuer balance
+			balancePerCustomer[msg.sender] -= msg.value; 
+			balancePerCustomer[_issuer] += msg.value; 
 			// Trigger event
 			emit ProductPurchased(_product.id);
 		}
@@ -245,7 +254,7 @@ contract Marketplace {
 			// Otherwise, if product is withdrawn, give a full refund regardless of _product.percentRefund
 			if (_product.withdrawn) {
 				// Check if value has enough ether attached
-				require(msg.value >= _product.price, "Insutticient funds for return");
+				require(balancePerCustomer[msg.sender] >= msg.value && msg.value >= _product.price, "Insutticient funds for return");
 				_percentRefund = 100; 
 			}
 
@@ -256,7 +265,7 @@ contract Marketplace {
 				// Require that product has not reached non-refundable window
 				require(block.timestamp < _product.creationTime + _product.duration - _product.refundWindow, "Product has passed refund window"); 
 				// Check if value has enough ether attached
-				require(msg.value >= _product.price * _product.percentRefund / 100, "Insutticient funds for return");
+				require(balancePerCustomer[msg.sender] >= msg.value && msg.value >= _product.price * _product.percentRefund / 100, "Insutticient funds for return");
 				_percentRefund = _product.percentRefund; 
 			}
 
@@ -270,15 +279,10 @@ contract Marketplace {
 			products[_id] = _product; 
 			// Update mapping
 			productsPerBuyerPerIssuer[_buyer][msg.sender]--; 
-			// Pay the buyer with Ether
-			// Potentially serious bug: msg.value is transferred but refund is not!!!
-			// Currently, the code only works because the Javascript front end controls the amount of value to transfer!!!
+			// Issuer balance sends refund to buyer balance
 			uint refund = msg.value * _percentRefund / 100; 
-			(bool success, ) = payable(_buyer).call{value:refund}("");
-        	require(success, "Transfer failed.");
-			// _buyer.transfer(refund);
-			// Pay the owner with Ether
-			// address(owner).transfer(msg.value * percentFee / 100); 
+			balancePerCustomer[msg.sender] -= refund; 
+			balancePerCustomer[_buyer] += refund; 
 			// Trigger event
 			emit ProductReturned(_product.id);
 		}
