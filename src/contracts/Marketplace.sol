@@ -5,7 +5,7 @@ pragma solidity ^0.6.0;
 contract Marketplace {
 
 	// Slot 1
-	address payable owner; 
+	address payable private owner; 
 	// Slot 2
 	bytes16 public name;
 	uint32 public productCount;
@@ -14,6 +14,7 @@ contract Marketplace {
 	// Slot 3
 	uint72 public constant maximumPrice = 500000000000000000 wei; // 0.5 eth
 	uint8 public constant maxProductsPerIssuer = 5; 
+	bool private stopped = false; 
 
 	mapping(uint32 => Product) public products;
 	mapping(address => mapping(address => uint24)) public productsPerBuyerPerIssuer; 
@@ -71,6 +72,15 @@ contract Marketplace {
 		owner = msg.sender; 
 	}
 
+	modifier isAdmin() {
+		require(msg.sender == owner, "Owner only");
+		_;
+	}
+
+	modifier stopInEmergency { if (!stopped) _; }
+
+	// modifier onlyInEmergency { if (stopped) _; }
+
 	// Receive function: only for paying Ethereum to contract
 	receive() external payable {
 		// Empty
@@ -81,9 +91,13 @@ contract Marketplace {
 		require(msg.data.length == 0); 
 	}
 
+	function toggleContractActive() isAdmin public {
+	    stopped = !stopped;
+	}
+
 	// msg.sender is the issuer
 	// Transaction fee for owner: 0 Wei
-	function createProduct(string memory _name, uint72 _price, uint8 _percentRefund, uint32 _duration, uint32 _refundWindow) public {
+	function createProduct(string memory _name, uint72 _price, uint8 _percentRefund, uint32 _duration, uint32 _refundWindow) stopInEmergency public {
 		uint len = bytes(_name).length; 
 		// Require a valid name
 		require(len > 0, "Invalid name passed to create"); 
@@ -197,7 +211,9 @@ contract Marketplace {
 			// Update the product
 			products[_id] = _product; 
 			// Pay the issuer with Ether
-			_issuer.transfer(msg.value);
+			(bool success, ) = _issuer.call.value(msg.value)("");
+        	require(success, "Transfer failed.");
+			// _issuer.transfer(msg.value);
 			// Pay the owner with Ether
 			// address(owner).transfer(percentFee * msg.value / 100); 
 			// Update mapping
@@ -256,7 +272,9 @@ contract Marketplace {
 			// Potentially serious bug: msg.value is transferred but refund is not!!!
 			// Currently, the code only works because the Javascript front end controls the amount of value to transfer!!!
 			uint refund = msg.value * _percentRefund / 100; 
-			_buyer.transfer(refund);
+			(bool success, ) = _buyer.call.value(refund)("");
+        	require(success, "Transfer failed.");
+			// _buyer.transfer(refund);
 			// Pay the owner with Ether
 			// address(owner).transfer(msg.value * percentFee / 100); 
 			// Update mapping
