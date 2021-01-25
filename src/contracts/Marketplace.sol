@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.6.0;
+pragma solidity 0.8.0;
 
 contract Marketplace {
 
 	// Slot 1
-	address payable private owner; 
+	address private owner; 
 	// Slot 2
 	bytes16 public name;
 	uint32 public productCount;
@@ -24,9 +24,9 @@ contract Marketplace {
 	// Note on uint: uint256 by default, aiiowing 2**256-1 ~ 1 possibilities
 	struct Product {
 		// Slot 1
-		address payable issuer; // Issuer of ticket (e.g., event host, trusted third party)
+		address issuer; // Issuer of ticket (e.g., event host, trusted third party)
 		// Slot 2
-		address payable holder; // Holder of ticket
+		address holder; // Holder of ticket
 		// Slot 3
 		bytes15 name; // Location of ticket in venue (max: 15 characters)
 		uint32 id; // Unique ticket ID (numerical max: 4.3 billion tickets)
@@ -43,9 +43,9 @@ contract Marketplace {
 
 	event ProductCreated(
 		// Slot 1
-		address payable issuer,
+		address issuer,
 		// Slot 2
-		address payable holder,
+		address holder,
 		// Slot 3
 		bytes15 name,
 		uint32 id,
@@ -67,7 +67,7 @@ contract Marketplace {
 
 	event ProductReturned(uint32 id);
 
-	constructor() public {
+	constructor() {
 		name = "Ticketly";
 		owner = msg.sender; 
 	}
@@ -132,7 +132,7 @@ contract Marketplace {
 		_product.purchased = false;
 		_product.returnRequested = false;
 		_product.withdrawn = false;
-		_product.creationTime = uint32(now);
+		_product.creationTime = uint32(block.timestamp);
 		_product.duration = _duration; 
 		_product.refundWindow = _refundWindow; 
 		products[productCount] = _product;
@@ -161,7 +161,7 @@ contract Marketplace {
 			// Require that issuer is valid
 			require(_product.issuer == msg.sender, "Unauthorized withdrawal attempt"); 
 			// Require that the product is not expired
-			require(now < _product.creationTime + _product.duration, "Product expired"); 
+			require(block.timestamp < _product.creationTime + _product.duration, "Product expired"); 
 			// Make withdrawn
 			_product.withdrawn = true; 
 			// Update the product
@@ -179,7 +179,7 @@ contract Marketplace {
 			// Require that buyer is valid
 			require(_product.holder == msg.sender, "Unauthorized request attempt"); 
 			// Require that the product is not expired
-			require(now < _product.creationTime + _product.duration, "Product expired"); 
+			require(block.timestamp < _product.creationTime + _product.duration, "Product expired"); 
 			// Request return
 			_product.returnRequested = true; 
 			// Update the product
@@ -191,7 +191,7 @@ contract Marketplace {
 		// Purchases ticket from issuer
 		else if (_code == 3) {
 			// Fetch the issuer
-			address payable _issuer = _product.issuer;
+			address _issuer = _product.issuer;
 			// Check if buyer has bought too many tickets
 			require(productsPerBuyerPerIssuer[msg.sender][_issuer] < maxProductsPerBuyerPerIssuer, "Threshold for products reached"); 
 			// Check if value has enough ether attached
@@ -203,7 +203,7 @@ contract Marketplace {
 			// Require that the product is not withdrawn
 			require(!_product.withdrawn, "Product withdrawn"); 
 			// Require that the product is not expired
-			require(now < _product.creationTime + _product.duration, "Product expired"); 
+			require(block.timestamp < _product.creationTime + _product.duration, "Product expired"); 
 			// Transfer holder status to buyer
 			_product.holder = msg.sender; 
 			// Mark as purchased
@@ -211,7 +211,7 @@ contract Marketplace {
 			// Update the product
 			products[_id] = _product; 
 			// Pay the issuer with Ether
-			(bool success, ) = _issuer.call.value(msg.value)("");
+			(bool success, ) = payable(_issuer).call{value:msg.value}("");
         	require(success, "Transfer failed.");
 			// _issuer.transfer(msg.value);
 			// Pay the owner with Ether
@@ -225,7 +225,7 @@ contract Marketplace {
 		// Returns ticket to issuer
 		else if (_code == 4) {
 			// Fetch the holder
-			address payable _buyer = _product.holder;
+			address _buyer = _product.holder;
 			// Require that issuer is valid
 			require(_product.issuer == msg.sender, "Unauthorized return attempt"); 
 			// Check if buyer currently holds ticket
@@ -238,7 +238,7 @@ contract Marketplace {
 			uint8 _percentRefund; 
 
 			// If ticket expired, return without refund
-			if (now >= _product.creationTime + _product.duration) {
+			if (block.timestamp >= _product.creationTime + _product.duration) {
 				_percentRefund = 0; 
 			}
 
@@ -254,7 +254,7 @@ contract Marketplace {
 				// Require that product is refundable
 				require(_product.percentRefund > 0, "Product is non-refundable"); 
 				// Require that product has not reached non-refundable window
-				require(now < _product.creationTime + _product.duration - _product.refundWindow, "Product has passed refund window"); 
+				require(block.timestamp < _product.creationTime + _product.duration - _product.refundWindow, "Product has passed refund window"); 
 				// Check if value has enough ether attached
 				require(msg.value >= _product.price * _product.percentRefund / 100, "Insutticient funds for return");
 				_percentRefund = _product.percentRefund; 
@@ -272,7 +272,7 @@ contract Marketplace {
 			// Potentially serious bug: msg.value is transferred but refund is not!!!
 			// Currently, the code only works because the Javascript front end controls the amount of value to transfer!!!
 			uint refund = msg.value * _percentRefund / 100; 
-			(bool success, ) = _buyer.call.value(refund)("");
+			(bool success, ) = payable(_buyer).call{value:refund}("");
         	require(success, "Transfer failed.");
 			// _buyer.transfer(refund);
 			// Pay the owner with Ether
