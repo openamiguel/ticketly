@@ -210,14 +210,14 @@ contract Marketplace {
 			_product.purchased = true;
 			// Update the product
 			products[_id] = _product; 
+			// Update mapping
+			productsPerBuyerPerIssuer[msg.sender][_issuer]++; 
 			// Pay the issuer with Ether
 			(bool success, ) = payable(_issuer).call{value:msg.value}("");
         	require(success, "Transfer failed.");
 			// _issuer.transfer(msg.value);
 			// Pay the owner with Ether
 			// address(owner).transfer(percentFee * msg.value / 100); 
-			// Update mapping
-			productsPerBuyerPerIssuer[msg.sender][_issuer]++; 
 			// Trigger event
 			emit ProductPurchased(_product.id);
 		}
@@ -268,6 +268,8 @@ contract Marketplace {
 			_product.returnRequested = false; 
 			// Update the product
 			products[_id] = _product; 
+			// Update mapping
+			productsPerBuyerPerIssuer[_buyer][msg.sender]--; 
 			// Pay the buyer with Ether
 			// Potentially serious bug: msg.value is transferred but refund is not!!!
 			// Currently, the code only works because the Javascript front end controls the amount of value to transfer!!!
@@ -277,8 +279,6 @@ contract Marketplace {
 			// _buyer.transfer(refund);
 			// Pay the owner with Ether
 			// address(owner).transfer(msg.value * percentFee / 100); 
-			// Update mapping
-			productsPerBuyerPerIssuer[_buyer][msg.sender]--; 
 			// Trigger event
 			emit ProductReturned(_product.id);
 		}
