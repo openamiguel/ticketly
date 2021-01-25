@@ -11,9 +11,14 @@ contract Marketplace {
 	uint32 public productCount;
 	uint8 public constant maxProductsPerBuyerPerIssuer = 2; 
 	uint8 public constant percentFee = 3; // MUST NEVER BE ZERO!!!
+	// Slot 3
+	uint72 public constant maximumPrice = 500000000000000000 wei; // 0.5 eth
+	uint8 public constant maxProductsPerIssuer = 5; 
 
 	mapping(uint32 => Product) public products;
 	mapping(address => mapping(address => uint24)) public productsPerBuyerPerIssuer; 
+	mapping(address => uint24) public productsPerIssuer; 
+	mapping(address => uint72) public balancePerIssuer; 
 
 	// Note on uint: uint256 by default, aiiowing 2**256-1 ~ 1 possibilities
 	struct Product {
@@ -23,8 +28,8 @@ contract Marketplace {
 		address payable holder; // Holder of ticket
 		// Slot 3
 		bytes15 name; // Location of ticket in venue (max: 15 characters)
-		uint32 id; // Unique ticket ID (max: 4.3 billion tickets)
-		uint72 price; // Price in Wei (max: 4722.4 Eth)
+		uint32 id; // Unique ticket ID (numerical max: 4.3 billion tickets)
+		uint72 price; // Price in Wei (numerical max: 4722.4 Eth)
 		uint8 percentRefund; // Non-refundable products (percentRefund == 0) can be purchased but not returned
 		bool purchased; // Purchased products cannot be bought again
 		bool returnRequested; // Buyer can request refunds, but seller must unilaterally approve requests
@@ -86,6 +91,10 @@ contract Marketplace {
 		require(len <= 15, "Very long name passed to create"); 
 		// Require a valid price (so that 1% of the minimum price = 1 wei)
 		require(_price >= 100, "Very low price passed to create"); 
+		// Require a price less than maximumPrice
+		require(_price <= maximumPrice, "High price passed to create"); 
+		// Require cap on tickets issued
+		require(productsPerIssuer[msg.sender] < maxProductsPerIssuer, "Maximum products reached");
 		// Require a valid percent
 		require(_percentRefund >= 0 && _percentRefund <= 100, "Invalid percentage passed to create"); 
 		// Require valid duration
@@ -113,6 +122,8 @@ contract Marketplace {
 		_product.duration = _duration; 
 		_product.refundWindow = _refundWindow; 
 		products[productCount] = _product;
+		// Add product to productsPerIssuer mapping
+		productsPerIssuer[msg.sender]++; 
 		// Trigger an event
 		emit ProductCreated(msg.sender, msg.sender, _name15, productCount, _price, _percentRefund, false, false, false, _product.creationTime, _duration, _refundWindow);
 	}
