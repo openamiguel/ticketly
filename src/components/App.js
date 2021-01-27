@@ -60,47 +60,20 @@ class App extends Component {
     }
 
     this.createProduct = this.createProduct.bind(this)
-    this.withdrawProduct = this.withdrawProduct.bind(this)
-    this.requestReturn = this.requestReturn.bind(this)
-    this.purchaseProduct = this.purchaseProduct.bind(this)
-    this.returnProduct = this.returnProduct.bind(this)
+    this.morphProduct = this.morphProduct.bind(this)
   }
 
-  createProduct(name, price, percentRefund) {
+  createProduct(name, price, percentRefund, duration, refundWindow) {
     this.setState({ loading: true })
-    this.state.marketplace.methods.createProduct(name, price, percentRefund).send({ from: this.state.account })
+    this.state.marketplace.methods.createProduct(name, price, percentRefund, duration, refundWindow).send({ from: this.state.account })
     .once('receipt', (receipt) => {
       this.setState({ loading: false })
     })
   }
 
-  withdrawProduct(id) {
+  morphProduct(id, code, price) {
     this.setState({ loading: true })
-    this.state.marketplace.methods.withdrawProduct(id).send({ from: this.state.account })
-    .once('receipt', (receipt) => {
-      this.setState({ loading: false })
-    })
-  }
-
-  requestReturn(id) {
-    this.setState({ loading: true })
-    this.state.marketplace.methods.requestReturn(id).send({ from: this.state.account })
-    .once('receipt', (receipt) => {
-      this.setState({ loading: false })
-    })
-  }
-
-  purchaseProduct(id, price) {
-    this.setState({ loading: true })
-    this.state.marketplace.methods.purchaseProduct(id).send({ from: this.state.account, value: price })
-    .once('receipt', (receipt) => {
-      this.setState({ loading: false })
-    })
-  }
-
-  returnProduct(id, price) {
-    this.setState({ loading: true })
-    this.state.marketplace.methods.returnProduct(id).send({ from: this.state.account, value: price })
+    this.state.marketplace.methods.morphProduct(id, code).send({ from: this.state.account, value: price })
     .once('receipt', (receipt) => {
       this.setState({ loading: false })
     })
@@ -119,10 +92,7 @@ class App extends Component {
                   products={this.state.products}
                   account={this.state.account}
                   createProduct={this.createProduct}
-                  withdrawProduct={this.withdrawProduct}
-                  requestReturn={this.requestReturn}
-                  purchaseProduct={this.purchaseProduct} 
-                  returnProduct={this.returnProduct} />
+                  morphProduct={this.morphProduct} />
               }
             </main>
           </div>
