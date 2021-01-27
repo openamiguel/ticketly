@@ -41,6 +41,11 @@ contract Marketplace {
 		uint32 refundWindow; // creationTime + duration - refundWindow is the last opportunity to return with a refund (seconds)
 	}
 
+	struct RequestedWithdrawal {
+		uint256 amount; 
+		uint256 time; 
+	}
+
 	event ProductCreated(
 		// Slot 1
 		address issuer,
@@ -158,7 +163,7 @@ contract Marketplace {
 	// _code = 2: requestReturn
 	// _code = 3: purchaseProduct
 	// _code = 4: returnProduct
-	function morphProduct(uint32 _id, uint8 _code) external { // payable
+	function morphProduct(uint32 _id, uint8 _code) external payable {
 
 		// Check if code is valid
 		require(_code > 0 && _code < 5, "Invalid code passed to morph");
