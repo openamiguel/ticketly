@@ -66,9 +66,15 @@ class App extends Component {
   createProduct(name, price, percentRefund, duration, refundWindow) {
     this.setState({ loading: true })
     this.state.marketplace.methods.createProduct(name, price, percentRefund, duration, refundWindow).send({ from: this.state.account })
-    .once('receipt', (receipt) => {
+    .on('confirmation', (confirmationNumber, receipt) => {
       this.setState({ loading: false })
     })
+    // .on('transactionHash', function () {
+    //   this.setState({ loading: false })
+    // })
+    // .once('receipt', (receipt) => {
+    //   this.setState({ loading: false })
+    // })
   }
 
   morphProduct(id, code, price) {
