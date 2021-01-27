@@ -18,11 +18,17 @@ An event ticketing app with low transaction fees and blockchain-driven anti-scal
 6. In Terminal, run `truffle console` (optional)
 
 	a. If so desired, run the following test commands: 
+	
 		`marketplace = await Marketplace.deployed()`
+		
 		`marketplace.address`
+		
 		`name = await marketplace.name()`
+		
 		`name`
+		
 		`sup = await marketplace.supervisor()`
+		
 		`sup`
 		
 7. In Terminal, run `truffle test`
@@ -70,6 +76,8 @@ An event ticketing app with low transaction fees and blockchain-driven anti-scal
 Should I be using modifiers to collapse duplicate code as much as possible? Or will I cause high gas/security problems?
 
 ## Acknowledgements
-Credits to Dapp University for the starter code for this app: https://www.dappuniversity.com/articles/how-to-build-a-blockchain-app#dependencies
+Credits to Dapp University for the starter code for this app: 
+https://github.com/dappuniversity/marketplace
+https://www.dappuniversity.com/articles/how-to-build-a-blockchain-app#dependencies
 
 Good source on using Remix for debugging: https://medium.com/linum-labs/error-vm-exception-while-processing-transaction-revert-8cd856633793
